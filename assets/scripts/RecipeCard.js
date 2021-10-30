@@ -1,8 +1,11 @@
+const $ = (selector) => document.querySelector(selector);
+
 class RecipeCard extends HTMLElement {
   constructor() {
     // Part 1 Expose - TODO
-
+    super();
     // You'll want to attach the shadow DOM here
+    this.shadow = this.attachShadow({mode: 'open'});
   }
 
   set data(data) {
@@ -100,6 +103,43 @@ class RecipeCard extends HTMLElement {
     // created in the constructor()
 
     // Part 1 Expose - TODO
+    // Image element
+    const recipeImg = document.createElement('img');
+    recipeImg.src = getImgUrl(data);
+    recipeImg.alt = getTitle(data);
+    card.appendChild(recipeImg);
+
+    // First p element - title
+    const recipeTitle = document.createElement('p');
+    recipeTitle.classList.add("title");
+    const titleLink = document.createElement('a');
+    titleLink.href = getUrl(data);
+    titleLink.textContent = getTitle(data);
+    recipeTitle.appendChild(titleLink);
+    card.appendChild(recipeTitle);
+
+    // Second p element - organization
+    const recipeOrgan = document.createElement('p');
+    recipeOrgan.classList.add('organization');
+    recipeOrgan.textContent = getOrganization(data);
+    card.appendChild(recipeOrgan);
+
+    // div element - rating
+    card.appendChild(createRating(data));
+
+    // time element
+    const recipeTime = document.createElement('time');
+    recipeTime.textContent = convertTime(getCookTime(data));
+    card.appendChild(recipeTime);
+
+    // Third p element - ingredients
+    const recipeIngre = document.createElement('p');
+    recipeIngre.classList.add('ingredients');
+    recipeIngre.textContent = createIngredientList(getIngredient(data));
+    card.appendChild(recipeIngre);
+    
+    this.shadow.appendChild(styleElem);
+    this.shadow.appendChild(card);
   }
 }
 
@@ -223,6 +263,122 @@ function createIngredientList(ingredientArr) {
   // The .slice(0,-2) here gets ride of the extra ', ' added to the last ingredient
   return finalIngredientList.slice(0, -2);
 }
+
+
+function getImgUrl(data) {
+  if (data.image) return data.image.url;
+  if (data['@graph']) {
+    for (let i = 0; i < data['@graph'].length; i++) {
+      if (data['@graph'][i]['@type'] == 'ImageObject') return data['@graph'][i]['url'];
+    }
+  };
+  return null;
+}
+
+
+function getTitle(data) {
+  if (data.headline) return data.headline;
+  if (data['@graph']) {
+    for (let i = 0; i < data['@graph'].length; i++) {
+      if (data['@graph'][i]['@type'] == 'Article') return data['@graph'][i]['headline'];
+    }
+  };
+  return null;
+}
+
+
+function createRating(data) {
+  const recipeRating = document.createElement('div');
+  recipeRating.classList.add('rating');
+  let rateVal = 0;
+  let rateCount = 0;
+
+  if (data.aggregateRating) {
+    rateVal = data.aggregateRating.ratingValue;
+    rateCount = data.aggregateRating.ratingCount;
+  }
+  else if (data['@graph']) {
+    for (let i = 0; i < data['@graph'].length; i++) {
+      if (data['@graph'][i]['@type'] == 'Recipe') {
+        rateVal = data['@graph'][i]['aggregateRating']['ratingValue'];
+        rateCount = data['@graph'][i]['aggregateRating']['ratingCount'];
+      } 
+    }
+  }
+
+  if (!searchForKey(data, 'aggregateRating')){
+    const noReview = document.createElement('span');
+    noReview.textContent = "No Reviews";
+    recipeRating.appendChild(noReview);
+    return recipeRating;
+  }
+
+  const reviewRate = document.createElement('span');
+  reviewRate.textContent = rateVal;
+  recipeRating.appendChild(reviewRate);
+
+  const reviewImg = document.createElement('img');
+  if (rateVal < 0.5) {
+    reviewImg.src = "assets/images/icons/0-star.svg";
+    reviewImg.alt = "0 star";
+  }
+  else if (rateVal >= 0.5 && rateVal < 1.5) {
+    reviewImg.src = "assets/images/icons/1-star.svg";
+    reviewImg.alt = "1 star";
+  }
+  else if (rateVal >= 1.5 && rateVal < 2.5) {
+    reviewImg.src = "assets/images/icons/2-star.svg";
+    reviewImg.alt = "2 stars";
+  }
+  else if (rateVal >= 2.5 && rateVal < 3.5) {
+    reviewImg.src = "assets/images/icons/3-star.svg";
+    reviewImg.alt = "3 stars";
+  }
+  else if (rateVal >= 3.5 && rateVal < 4.5) {
+    reviewImg.src = "assets/images/icons/4-star.svg";
+    reviewImg.alt = "4 stars";
+  }
+  else if (rateVal >= 4.5) {
+    reviewImg.src = "assets/images/icons/5-star.svg";
+    reviewImg.alt = "5 stars";
+  }
+  recipeRating.appendChild(reviewImg);
+
+  const reviewCount = document.createElement('span');
+  reviewCount.textContent = `(${rateCount})`;
+  recipeRating.appendChild(reviewCount);
+
+  return recipeRating;
+}
+
+
+function getCookTime(data) {
+  if (data.totalTime) {
+    return data.totalTime;
+  }
+  else if (data['@graph']) {
+    for (let i = 0; i < data['@graph'].length; i++) {
+      if (data['@graph'][i]['@type'] == 'Recipe') {
+        return data['@graph'][i]['totalTime'];
+      } 
+    }
+  }
+}
+
+
+function getIngredient(data) {
+  if (data.recipeIngredient) {
+    return data.recipeIngredient;
+  }
+  else if (data['@graph']) {
+    for (let i = 0; i < data['@graph'].length; i++) {
+      if (data['@graph'][i]['@type'] == 'Recipe') {
+        return data['@graph'][i]['recipeIngredient'];
+      } 
+    }
+  }
+}
+
 
 // Define the Class so you can use it as a custom element.
 // This is critical, leave this here and don't touch it
